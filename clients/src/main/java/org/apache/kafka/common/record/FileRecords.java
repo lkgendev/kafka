@@ -170,16 +170,19 @@ public class FileRecords extends AbstractRecords implements Closeable {
      * Commit all written data to the physical disk
      */
     public void flush() throws IOException {
-        channel.force(true);
+        if (channel.isOpen())
+            channel.force(true);
     }
 
     /**
      * Close this record set
      */
     public void close() throws IOException {
-        flush();
-        trim();
-        channel.close();
+        if (channel.isOpen()) {
+            flush();
+            trim();
+            channel.close();
+        }
     }
 
     /**
@@ -204,7 +207,8 @@ public class FileRecords extends AbstractRecords implements Closeable {
      * Trim file when close or roll to next file
      */
     public void trim() throws IOException {
-        truncateTo(sizeInBytes());
+        if (channel.isOpen())
+          truncateTo(sizeInBytes());
     }
 
     /**

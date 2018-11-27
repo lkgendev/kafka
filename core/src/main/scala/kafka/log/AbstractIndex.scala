@@ -202,8 +202,18 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
    * @throws IOException if rename fails
    */
   def renameTo(f: File) {
+    val position = if (this.mmap == null) 0 else this.mmap.position()
+    closeHandler()
     try Utils.atomicMoveWithFallback(file.toPath, f.toPath)
     finally file = f
+    val raf = new RandomAccessFile(f, "rw")
+    try {
+       val len = raf.length()
+       this.mmap = raf.getChannel.map(FileChannel.MapMode.READ_WRITE, 0, len)
+       this.mmap.position(position)
+    } finally {
+       CoreUtils.swallow(raf.close(), this)
+    }
   }
 
   /**
@@ -315,8 +325,10 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
    * Forcefully free the buffer's mmap.
    */
   protected[log] def forceUnmap() {
-    try MappedByteBuffers.unmap(file.getAbsolutePath, mmap)
-    finally mmap = null // Accessing unmapped mmap crashes JVM by SEGV so we null it out to be safe
+    if (mmap != null && file != null) {
+      try MappedByteBuffers.unmap(file.getAbsolutePath, mmap)
+      finally mmap = null // Accessing unmapped mmap crashes JVM by SEGV so we null it out to be safe
+    }
   }
 
   /**

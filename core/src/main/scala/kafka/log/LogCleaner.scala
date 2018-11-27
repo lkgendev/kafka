@@ -570,6 +570,7 @@ private[log] class Cleaner(val id: Int,
       cleaned.onBecomeInactiveSegment()
       // flush new segment to disk before swap
       cleaned.flush()
+      cleaned.closeHandlers()
 
       // update the modification date to retain the last modified date of the original files
       val modified = segments.last.lastModified
@@ -637,7 +638,7 @@ private[log] class Cleaner(val id: Int,
     }
 
     var position = 0
-    while (position < sourceRecords.sizeInBytes) {
+    while (position < sourceRecords.sizeInBytes && sourceRecords.channel().isOpen()) {
       checkDone(topicPartition)
       // read a chunk of messages and copy any that are to be retained to the write buffer to be written out
       readBuffer.clear()

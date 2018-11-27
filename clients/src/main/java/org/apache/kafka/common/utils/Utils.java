@@ -796,10 +796,19 @@ public final class Utils {
      */
     public static void atomicMoveWithFallback(Path source, Path target) throws IOException {
         try {
+            log.info("moving " + source.toString() + " into " + target.toString());
             Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
+            log.info("done moving " + source.toString() + " into " + target.toString());
         } catch (IOException outer) {
             try {
-                Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+                log.info("after atomic try  again " + source.toString() + " into " + target.toString());
+                if (target.toString().endsWith(".deleted")) {
+                    log.info("deleting instead, " + source.toString());
+                    Files.delete(source);
+                } else {
+                    log.info("retry the move");
+                    Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+                }
                 log.debug("Non-atomic move of {} to {} succeeded after atomic move failed due to {}", source, target,
                         outer.getMessage());
             } catch (IOException inner) {
